@@ -3,7 +3,7 @@ import {store} from './store';
 import patch from './ast-patch';
 import SHARED from './shared';
 import {activate} from './actions';
-import {computeFocusIdFromChanges} from './utils';
+import {computeFocusIdFromChanges, posAfterChanges} from './utils';
 
 const tmpDiv = document.createElement('div');
 const tmpCM = CodeMirror(tmpDiv, {value: ""});
@@ -37,14 +37,13 @@ export function commitChanges(
       let removed       = raw(c.removed);
       if(lastRemoved && (inserted === lastRemoved)) {
         dragId = oldAST.getNodeAfterCur(lastChange.from).id;
-        dragTo = c.from;
+        dragTo = posAfterChanges([lastChange, c], c.from, true)
       } else if(lastInserted && (removed === lastInserted)) {
         dragId = oldAST.getNodeAfterCur(c.from).id;
-        dragTo = lastChange.from;
+        dragTo = posAfterChanges([lastChange, c], lastChange.from, true)
       }
       if(dragId) {
         oldAST = patch(oldAST, newAST, {id: dragId, loc: dragTo});
-        console.log('tree after drag-patch:', oldAST);
       } 
       lastChange = c;
     });
