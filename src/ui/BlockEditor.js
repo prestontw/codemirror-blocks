@@ -7,6 +7,7 @@ import {connect} from 'react-redux';
 import SHARED from '../shared';
 import patch from '../ast-patch';
 import NodeEditable from '../components/NodeEditable';
+import BlockComponent from '../components/BlockComponent';
 import {activate} from '../actions';
 import {playSound, BEEP} from '../sound';
 import FakeCursorManager from './FakeCursorManager';
@@ -14,13 +15,12 @@ import {pos} from '../types';
 import merge from '../merge';
 import {addLanguage, getLanguage} from '../languages/';
 import CodeMirror from './DragAndDropEditor';
-import {computeFocusIdFromChanges} from '../utils';
+import {computeFocusIdFromChanges, poscmp} from '../utils';
 
 
 // TODO(Oak): this should really be a new file, but for convenience we will put it
 // here for now
-
-class ToplevelBlock extends React.Component {
+class ToplevelBlock extends BlockComponent {
   constructor(props) {
     super(props);
     this.container = document.createElement('span');
@@ -31,11 +31,22 @@ class ToplevelBlock extends React.Component {
     node: PropTypes.object.isRequired,
   }
 
+  // we need to trigger a render if the node was moved at the top-level,
+  // in order to re-mark the node and put the DOM in the new marker
+  shouldComponentUpdate(props, state) {
+    let topLevelDragged = !this.mark.find();
+    let nodeChanged = super.shouldComponentUpdate(props, state);
+    return topLevelDragged || nodeChanged;
+  }
+
+  // clear the CM marker when the root is removed 
+  componentWillUnmount() { this.mark.clear(); }
+
   render() {
     const {node} = this.props;
     const {from, to} = node.srcRange(); // includes the node's comment, if any
     // if any prior block markers are in this range, clear them
-    SHARED.cm.findMarks(from, to).filter(m=>m.BLOCK_NODE_ID).forEach(m => m.clear());
+    if(this.mark) this.mark.clear(); // remove old marker
     this.mark = SHARED.cm.markText(from, to, {replacedWith: this.container});
     this.mark.BLOCK_NODE_ID = node.id;
     return ReactDOM.createPortal(node.reactElement(), this.container);
@@ -48,10 +59,15 @@ class ToplevelBlockEditableCore extends Component {
 
   constructor(props) {
     super(props);
-    const [pos] = this.props.quarantine;
+    const [start, end] = this.props.quarantine;
     this.container = document.createElement('span');
     this.container.classList.add('react-container');
-    this.marker = SHARED.cm.setBookmark(pos, {widget: this.container});
+    // CM treats 0-width ranges differently than other ranges, so check
+    if(poscmp(start, end) === 0) {
+      this.marker = SHARED.cm.setBookmark(start, {widget: this.container});
+    } else {
+      this.marker = SHARED.cm.markText(start, end, {replacedWith: this.container});
+    }
   }
 
   componentWillUnmount() {
@@ -60,8 +76,8 @@ class ToplevelBlockEditableCore extends Component {
 
   render() {
     const {onDisableEditable, onChange, quarantine} = this.props;
-    const [pos, value] = quarantine;
-    const node = {id: 'editing', from: pos, to: pos};
+    const [start, end, value] = quarantine;
+    const node = {id: 'editing', from: start, to: end};
     const props = {
       tabIndex          : '-1',
       role              : 'text box',
@@ -258,15 +274,17 @@ class BlockEditor extends Component {
     if (e.ctrlKey || e.metaKey) return;
     e.preventDefault();
     const text = e.key;
-    const cur = SHARED.cm.getCursor();
-    this.props.setQuarantine(cur, text);
+    const start = SHARED.cm.getCursor(true);
+    const end = SHARED.cm.getCursor(false);
+    this.props.setQuarantine(start, end, text);
   }
 
   handlePaste = (ed, e) => {
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
-    const cur = SHARED.cm.getCursor();
-    this.props.setQuarantine(cur, text);
+    const start = SHARED.cm.getCursor(true);
+    const end = SHARED.cm.getCursor(false);
+    this.props.setQuarantine(start, end, text);
   }
 
   editorChange = (cm, changes) => {
@@ -396,17 +414,16 @@ class BlockEditor extends Component {
     // SHARED.buffer.style.opacity = 0;
     // SHARED.buffer.style.height = '1px';
     document.body.appendChild(SHARED.buffer);
-    this.refreshCM();
+    SHARED.cm.refresh();
   }
 
-  componentDidUpdate() { this.refreshCM(); }
-
   // NOTE(Emmanuel): use requestAnimationFrame to make sure that cm.refresh() is called
-  // after the DOM has finished updating.
-  refreshCM() {
+  // after the DOM has completely finished updating.
+  // see https://stackoverflow.com/questions/26556436/react-after-render-code/28748160#28748160
+  componentDidUpdate() {
+    SHARED.cm.refresh(); 
     window.requestAnimationFrame(() => {
       console.log('RAF renderTime:', (Date.now() - this.startTime)/1000, 'ms');
-      SHARED.cm.refresh();
     });
   }
 
@@ -466,7 +483,7 @@ const mapDispatchToProps = dispatch => ({
   setAnnouncer: announcer => dispatch({type: 'SET_ANNOUNCER', announcer}),
   setCursor: (_, cur) => dispatch({type: 'SET_CURSOR', cur}),
   clearFocus: () => dispatch({type: 'SET_FOCUS', focusId: null}),
-  setQuarantine: (pos, text) => dispatch({type: 'SET_QUARANTINE', pos, text}),
+  setQuarantine: (start, end, text) => dispatch({type: 'SET_QUARANTINE', start, end, text}),
   activate: (id, options) => dispatch(activate(id, options)),
 });
 
