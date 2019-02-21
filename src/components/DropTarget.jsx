@@ -58,7 +58,8 @@ class DropTarget extends BlockComponent {
     const node = {
       from: location,
       to: location,
-      id: 'editing', // TODO(Oak): error focusing is going to be wrong
+      id: 'editing',
+      toString: () => "", // synthetic toString method for an empty dropTarget
     };
     if (this.props.editable) {
       return (
