@@ -77,7 +77,7 @@ class ToplevelBlockEditableCore extends Component {
   render() {
     const {onDisableEditable, onChange, quarantine} = this.props;
     const [start, end, value] = quarantine;
-    const node = {id: 'editing', from: start, to: end};
+    const node = {id: 'editing', from: start, to: end, toString: () => value};
     const props = {
       tabIndex          : '-1',
       role              : 'text box',
@@ -421,11 +421,14 @@ class BlockEditor extends Component {
   // after the DOM has completely finished updating.
   // see https://stackoverflow.com/questions/26556436/react-after-render-code/28748160#28748160
   componentDidUpdate() {
-    SHARED.cm.refresh(); 
     window.requestAnimationFrame(() => {
-      console.log('RAF renderTime:', (Date.now() - this.startTime)/1000, 'ms');
+      setTimeout( () => {
+        console.log('RAF renderTime:', (Date.now() - this.startTime)/1000, 'ms');
+        SHARED.cm.refresh(); 
+      }, 0)
     });
   }
+
 
   // TODO(Emmanuel): is 'data' even needed?
   // this change was introduced during the switch from onCursor to onCursorActivity
