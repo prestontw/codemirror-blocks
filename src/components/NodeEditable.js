@@ -24,9 +24,8 @@ class NodeEditable extends Component {
   constructor(props) {
     super(props);
     if (this.props.value === null) {
-      // TODO(Oak): this is bad. Shouldn't access .from and .to directly here
-      // since it might be incorrect
-      this.cachedValue = SHARED.cm.getRange(this.props.node.from, this.props.node.to);
+      // NOTE(Emmanuel): if there is no starting value, pretty-print the node
+      this.cachedValue = this.props.node.toString();
     }
   }
 
