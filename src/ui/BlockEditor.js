@@ -331,6 +331,16 @@ class BlockEditor extends Component {
 
     this.props.search.setCM(ed);
 
+    // once the DOM has loaded, reconstitute any marks and render them
+    // see https://stackoverflow.com/questions/26556436/react-after-render-code/28748160#28748160
+    window.requestAnimationFrame( () => setTimeout(() => {
+      this.markMap = new Map();
+      SHARED.recordedMarks.forEach((m, k) => {
+        let node = this.props.ast.getNodeByNId(k);
+        this.markText(node.from, node.to, m.options);
+      });
+    }, 0));
+
     // export methods to the object interface
     merge(this.props.api, this.buildAPI(ed));
   }
@@ -340,7 +350,10 @@ class BlockEditor extends Component {
     return {
       'cm': {
         // TODO: override the default markText method with one of our own
-        'markText': (from, to, opts) => alert('not yet implemented'),
+        'markText':   (from, to, opts) => this.markText(from, to, opts),
+        'findMarks':  (from, to) => this.findMarks(from, to),
+        'findMarksAt':(pos) => this.findMarksAt(pos),
+        'getAllMarks':() => this.getAllMarks(),
         'getValue': (sep) => ed.getValue(sep),
         'setValue': (value) => ed.setValue(value),
         'getScrollerElement': () => ed.getScrollerElement(),
@@ -363,6 +376,50 @@ class BlockEditor extends Component {
         'setQuarantine': (q) => this.props.setQuarantine(q),
       }
     };
+  }
+
+  markText(from, to, options) {
+    let node = this.props.ast.getNodeAt(from, to);
+    if(!node) {
+      throw new Error('Could not create TextMarker: there is no AST node at [',from, to,']');
+    }
+    let supportedOptions = ['css','className','title'];
+    for (let opt in options) {
+      if (!supportedOptions.includes(opt))
+        throw new Error(`markText: option "${opt}" is not supported in block mode`);
+    }
+    let mark = SHARED.cm.markText(from, to, options); // keep CM in sync
+    mark._clear = mark.clear;
+    mark.clear = () => { mark._clear(); this.props.dispatch({type: 'CLEAR_MARK', id: node.id}); };
+    mark.find = () => { let {from, to} = this.props.ast.getNodeById(node.id); return {from, to}; };
+    mark.options = options;
+    this.props.dispatch({type: 'ADD_MARK', id: node.id, mark: mark});
+    return mark;
+  }
+  findMarks(from, to) {
+    return SHARED.cm.findMarks(from, to).filter(m => !m.BLOCK_NODE_ID);
+  }
+  findMarksAt(pos) {
+    return SHARED.cm.findMarksAt(pos).filter(m => !m.BLOCK_NODE_ID);
+  }
+  getAllMarks() {
+    return SHARED.cm.getAllMarks().filter(m => !m.BLOCK_NODE_ID);
+  }
+  // clear all non-block marks
+  _clearMarks() {
+    this.getAllMarks().map(m => m.clear());
+  }
+
+  renderMarks() {
+    SHARED.cm.getAllMarks().filter(m => !m.BLOCK_NODE_ID && m.type !== "bookmark")
+      .forEach(m => m.clear());
+    this.props.dispatch((_, getState) => {
+      const {markedMap} = getState();
+      markedMap.forEach(v => {
+        let {from, to} = v.find();
+        SHARED.cm.markText(from, to, v.options);
+      });
+    });
   }
 
   handleEditorWillUnmount = ed => {
@@ -414,21 +471,20 @@ class BlockEditor extends Component {
     // SHARED.buffer.style.opacity = 0;
     // SHARED.buffer.style.height = '1px';
     document.body.appendChild(SHARED.buffer);
-    SHARED.cm.refresh();
+    this.afterDOMUpdate();
   }
+
+  componentDidUpdate() { this.afterDOMUpdate(); }
 
   // NOTE(Emmanuel): use requestAnimationFrame to make sure that cm.refresh() is called
   // after the DOM has completely finished updating.
   // see https://stackoverflow.com/questions/26556436/react-after-render-code/28748160#28748160
-  componentDidUpdate() {
-    window.requestAnimationFrame(() => {
-      setTimeout( () => {
-        console.log('RAF renderTime:', (Date.now() - this.startTime)/1000, 'ms');
+  afterDOMUpdate() {
+    window.requestAnimationFrame(() => setTimeout( () => {
+        console.log('Browser is ready after:', (Date.now() - this.startTime)/1000, 'ms');
         SHARED.cm.refresh(); 
-      }, 0)
-    });
+      }, 0));
   }
-
 
   // TODO(Emmanuel): is 'data' even needed?
   // this change was introduced during the switch from onCursor to onCursorActivity

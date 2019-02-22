@@ -45,6 +45,7 @@ class Node extends BlockComponent {
 
     isSelected: PropTypes.bool.isRequired,
     expandable: PropTypes.bool,
+    textMarker: PropTypes.object,
 
     activate: PropTypes.func.isRequired,
   }
@@ -367,6 +368,7 @@ class Node extends BlockComponent {
       isSelected,
       isCollapsed,
       expandable,
+      textMarker,
       children,
       node,
       ...passingProps
@@ -413,6 +415,7 @@ class Node extends BlockComponent {
         connectDragPreview
       } = this.props;
       classes.push({'blocks-over-target': isOver, 'blocks-node': true});
+      if(textMarker && textMarker.options.className) classes.push(textMarker.options.className);
 
       let result = (
         <span
@@ -422,7 +425,9 @@ class Node extends BlockComponent {
           role          = "treeitem"
           style={{
             opacity: isDragging ? 0.5 : 1,
+            cssText : textMarker? textMarker.options.css : null,
           }}
+          title         = {textMarker? textMarker.options.title : null}
           onClick       = {this.handleClick}
           onDoubleClick = {this.handleDoubleClick}
           onKeyDown     = {this.handleKeyDown}>
@@ -439,7 +444,7 @@ class Node extends BlockComponent {
 }
 
 const mapStateToProps = (
-  {selections, collapsedList},
+  {selections, collapsedList, markedMap},
   {node}
   // be careful here. Only node's id is accurate. Use getNodeById
   // to access accurate info
@@ -447,6 +452,7 @@ const mapStateToProps = (
   return {
     isSelected: selections.includes(node.id),
     isCollapsed: collapsedList.includes(node.id),
+    textMarker: markedMap.get(node.id)
   };
 };
 
