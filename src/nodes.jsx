@@ -382,8 +382,9 @@ class IfExpressionComponent extends ComponentWithDropTargets {
   render() {
     const {node} = this.props;
     const DropTarget = this.DropTarget;
+    console.log("@IfComponentRendered: node, props", node, this.props);
     return (
-      <Node node={node} {...this.props}>
+      <Node node={node} containsDropTargets={true} {...this.props}>
         <span className="blocks-operator">if</span>
         <div className="blocks-cond-table">
           <div className="blocks-cond-row">

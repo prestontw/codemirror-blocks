@@ -39,6 +39,7 @@ export default class BlockComponent extends Component {
         !vaguelyEqual(newProps, oldProps) ||
         !vaguelyEqual(state, this.state)
     );
+    console.log("@BlockComponent: shouldUpdate?", shouldUpdate);
     return shouldUpdate;
   }
 }

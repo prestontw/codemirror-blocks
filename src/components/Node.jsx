@@ -14,6 +14,7 @@ import {DragNodeSource, DropNodeTarget} from '../dnd';
 import classNames from 'classnames';
 import {store} from '../store';
 import {playSound, BEEP} from '../sound';
+import {DropTargetContainer} from './DropTarget';
 
 // TODO(Oak): make sure that all use of node.<something> is valid
 // since it might be cached and outdated
@@ -29,6 +30,7 @@ class Node extends BlockComponent {
     children: null,
     normallyEditable: false,
     expandable: true,
+    containsDropTargets: false,
   }
 
   static propTypes = {
@@ -40,6 +42,7 @@ class Node extends BlockComponent {
     connectDropTarget: PropTypes.func.isRequired,
     isOver: PropTypes.bool.isRequired,
     inToolbar: PropTypes.bool,
+    containsDropTargets: PropTypes.bool.isRequired,
 
     normallyEditable: PropTypes.bool,
 
@@ -50,7 +53,7 @@ class Node extends BlockComponent {
   }
 
   state = {editable: false, value: null}
-
+  
   componentDidMount() {
     // For testing
     this.props.node.isEditable = () => this.state.editable;
@@ -68,6 +71,7 @@ class Node extends BlockComponent {
   }
 
   handleDoubleClick = e => {
+    console.log("@Node.handleDoubleClick");
     e.stopPropagation();
     if(this.props.inToolbar) return;
     if (this.props.normallyEditable) {
@@ -242,7 +246,6 @@ class Node extends BlockComponent {
       case 'insertRight':
         e.preventDefault();
         if (e.ctrlKey) { // strictly want ctrlKey
-          // TODO: this should go up to the top level block
           if (this.props.onSetRight) {
             this.props.onSetRight(true);
           } else {
@@ -254,7 +257,6 @@ class Node extends BlockComponent {
       // insert-left
       case 'insertLeft':
         e.preventDefault();
-        // TODO: this should go up to the top level block
         if (this.props.onSetLeft) {
           this.props.onSetLeft(true);
         } else {
@@ -347,7 +349,9 @@ class Node extends BlockComponent {
   }
 
   handleMakeEditable = () => {
+    console.log("@Node.handleMakeEditable");
     if (!isErrorFree() || this.props.inToolbar) return;
+    console.log("@Node.handleMakeEditable: setState");
     this.setState({editable: true});
     SHARED.cm.refresh(); // is this needed?
   };
@@ -363,6 +367,9 @@ class Node extends BlockComponent {
   }
 
   render() {
+    console.log("@Node.render: node", this.props.node);
+    console.log("@Node.render: props", this.props);
+    console.log("@Node.render: state", this.state);
     const {
       isSelected,
       isCollapsed,
@@ -397,7 +404,8 @@ class Node extends BlockComponent {
     if (this.state.editable) {
       // TODO: combine passingProps and contentEditableProps
       return (
-        <NodeEditable {...passingProps}
+        <DropTargetContainer>
+          <NodeEditable {...passingProps}
                       onDisableEditable={this.handleDisableEditable}
                       extraClasses={classes}
                       isInsertion={false}
@@ -405,6 +413,7 @@ class Node extends BlockComponent {
                       value={this.state.value}
                       onChange={this.handleChange}
                       contentEditableProps={props} />
+        </DropTargetContainer>
       );
     } else {
       const {
@@ -433,7 +442,9 @@ class Node extends BlockComponent {
       if (this.props.normallyEditable) {
         result = connectDropTarget(result);
       }
-      return connectDragPreview(connectDragSource(result), {offsetX: 1, offsetY: 1});
+      result = connectDragPreview(connectDragSource(result), {offsetX: 1, offsetY: 1});
+      result = (<DropTargetContainer>{result}</DropTargetContainer>);
+      return result;
     }
   }
 }

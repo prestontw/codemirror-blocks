@@ -10,6 +10,11 @@ import DropTarget from './DropTarget';
 export default class ComponentWithDropTargets extends Component {
   static propTypes = {}
 
+  shouldComponentUpdate(props, state) {
+    console.log("@ComponentWithDropTargets:shouldUpdate? new props", props);
+    return true;
+  }
+  
   constructor() {
     super();
 
@@ -18,6 +23,8 @@ export default class ComponentWithDropTargets extends Component {
       if (!this.handleSetEditableArr[i]) {
         this.handleSetEditableArr[i] = b => {
           this.setState({editableList: {...this.state.editableList, [i]: b}});
+          console.log("@@@@@@@@@@@@@@@@@@@@@@@@@");
+          this.forceUpdate();
         };
       }
       return this.handleSetEditableArr[i];
@@ -35,6 +42,7 @@ export default class ComponentWithDropTargets extends Component {
       }
       
       render() {
+        console.log("@ComponentWithDropTargets:DropTarget.render props", this.props);
         const {index, location} = this.props;
         return <DropTarget
           location = {location}
