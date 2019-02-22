@@ -1,4 +1,5 @@
 import {assert} from './utils';
+import uuidv4 from 'uuid/v4';
 
 // defaultdict with empty list
 function addIndex(container, k, v) {
@@ -58,11 +59,15 @@ export default function unify(oldTree, newTree, drag) {
       }
     }
   }
+
   loop(oldTree, newTree);
-  // special-case for drag-and-drop
-  if(drag) {
-    copyAllIds(oldTree.getNodeById(drag.id), newTree.getNodeAfterCur(drag.loc));
-  }
   newTree.annotateNodes();
+  // special-case for drag-and-drop: (1) make sure ID isn't in use by another node
+  // (2) copy the dragged properties, and (3) re-annotated since the IDs have changed
+  if(drag) {
+    if(newTree.getNodeById(drag.id)) newTree.getNodeById(drag.id).id = uuidv4();
+    copyAllIds(oldTree.getNodeById(drag.id), newTree.getNodeAfterCur(drag.loc));
+    newTree.annotateNodes();
+  }
   return newTree;
 }
