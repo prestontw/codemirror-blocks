@@ -10,7 +10,7 @@ import {wait, cleanupAfterTest} from './support/test-utils';
 
 
 // ms delay to let the DOM catch up before testing
-const DELAY = 250;
+const DELAY = 750;
 
 describe('The CodeMirrorBlocks Class', function() {
   beforeEach(function() {
