@@ -17,7 +17,7 @@ describe('Pyret-lang integration', function () {
     const container = document.getElementById('cmb-editor');
     this.cmb = new CodeMirrorBlocks(container, { value: "" }, pyret);
     this.cmb.setBlockMode(true);
-    this.toggle = document.getElementsByClassName('blocks-toggle-btn')[0];
+    this.toggle = document.getElementsByClassName('blocks-toggle-btn');
     console.log(this.toggle);
   });
 
@@ -26,9 +26,11 @@ describe('Pyret-lang integration', function () {
   });
 
   it('should have the same text after hitting toggle', async function () {
-    insertText('3 + 5');
+    this.cmb.setValue('3 + 5');
     await wait(DELAY);
-    click(this.toggle);
+    expect(this.toggle.length).toEqual(1);
+    for (let button of this.toggle)
+      click(button);
     await wait(DELAY);
     expect(this.cmb.getValue()).toBe('3 + 5');
   })
